@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Tinta Fuerte - Cotizador</title>
   
-  <!-- Configuración PWA / App Descargable -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#df2433">
   <meta name="mobile-web-app-capable" content="yes">
@@ -74,7 +73,7 @@
     <form id="form">
       <div class="title">
         <h2 id="modalTitle">Agregar</h2>
-        <button value="cancel">x</button>
+        <button type="button" onclick="document.getElementById('modal').close()">x</button>
       </div>
       <input id="kind" type="hidden">
       <label>Producto<select id="product"></select></label>
@@ -107,8 +106,8 @@
       </label>
       
       <menu>
-        <button value="cancel">Cancelar</button>
-        <button class="primary">Agregar</button>
+        <button type="button" onclick="document.getElementById('modal').close()">Cancelar</button>
+        <button type="submit" class="primary">Agregar</button>
       </menu>
     </form>
   </dialog>
@@ -117,7 +116,6 @@
   <script src="pricing.js"></script>
   <script src="app.js"></script>
 
-  <!-- Registro de Service Worker para App Web -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
