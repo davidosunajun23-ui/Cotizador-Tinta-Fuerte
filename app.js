@@ -27,7 +27,6 @@
     let p = product($('#product').value);
     let s = $('#service').value || 'dtf';
 
-    // Actualizar modalidades según el servicio seleccionado
     let modalOptions = s === 'dtf' ? Object.keys(TF_PRICING.dtf) : ['Bordado frontal'];
     $('#modality').innerHTML = modalOptions.map(x => `<option value="${x}">${x}</option>`).join('');
 
@@ -87,21 +86,19 @@
     return g;
   }
 
-  function base(i) {
-    let p = product(i.productId), n = qty(i);
-    if (i.kind === 'punch' || i.kind === 'dtf' || i.kind === 'client-embroidery') return 0;
-    if (i.kind === 'cap') return n * (n >= TF_PRICING.general.capWholesaleFrom ? p.wholesale : p.retail);
-    if (p.premium) return 0;
-    return i.sizes ? Object.entries(i.sizes).reduce((s, [z, c]) => s + (p.prices[z] || 0) * c, 0) : (p.prices['S–XL'] || 0) * n;
-  }
-
   function calc(i, g) {
     if (i.kind === 'punch') {
       let total = i.punches * TF_PRICING.general.punchFee;
-      return { b: 0, total, punch: total, unit: 0 };
+      return { b: 0, total, punch: total, unit: 0, serviceUnit: 0, garmentUnit: 0, extraUnit: 0, extraTotal: 0 };
     }
-    let n = qty(i), p = product(i.productId), unit = g[i.key].unit + (p.premium ? p.adjust || 0 : 0), b = base(i), extra = i.extra * n, punch = i.punches * TF_PRICING.general.punchFee;
-    return { b, total: b + unit * n + extra + punch, punch, unit: (b + unit * n + extra) / n };
+    let n = qty(i), p = product(i.productId);
+    let serviceUnit = g[i.key].unit + (p.premium ? p.adjust || 0 : 0);
+    let b = i.kind === 'dtf' || i.kind === 'client-embroidery' ? 0 : (i.kind === 'cap' ? n * (n >= TF_PRICING.general.capWholesaleFrom ? p.wholesale : p.retail) : (p.premium ? 0 : (i.sizes ? Object.entries(i.sizes).reduce((s, [z, c]) => s + (p.prices[z] || 0) * c, 0) : (p.prices['S–XL'] || 0) * n)));
+    let extra = i.extra * n, punch = i.punches * TF_PRICING.general.punchFee;
+    let total = b + serviceUnit * n + extra + punch;
+    let garmentUnit = n > 0 ? b / n : 0;
+    
+    return { b, total, punch, unit: (b + serviceUnit * n + extra) / n, serviceUnit, garmentUnit, extraUnit: i.extra, extraTotal: extra };
   }
 
   function render() {
@@ -111,17 +108,73 @@
       total += c.total;
       pieces += i.kind === 'punch' ? 0 : n;
       bases += c.b;
-      if (i.kind === 'punch') return `<article class="item"><div><h3>Ponchado / digitalizacion</h3><p>${i.punches} ponchado${i.punches === 1 ? '' : 's'} - cargo fijo separado</p></div><div class="price">${fmt(c.total)}<small>${fmt(TF_PRICING.general.punchFee)} cada uno</small><button data-delete="${index}" class="delete">Eliminar</button></div></article>`;
-      let punch = c.punch ? ` - Ponchado: ${fmt(c.punch)} aparte` : '';
-      let extra = i.extra ? ` - Bordado extra: ${fmt(i.extra)} c/u` : '';
-      return `<article class="item"><div><h3>${product(i.productId).name}</h3><p>${n} piezas - ${i.service === 'dtf' ? 'DTF' : 'Bordado'} - ${i.modality}${extra}${punch}</p><p>Prenda sola: ${fmt(c.b)}</p></div><div class="price">${fmt(c.total)}<small>${fmt(c.unit)} c/u${c.punch ? ' + ponchado aparte' : ''}</small><button data-delete="${index}" class="delete">Eliminar</button></div></article>`;
+
+      if (i.kind === 'punch') {
+        return `<article class="item" style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0">Solo Ponchado / Digitalización</h3>
+            <strong style="font-size:1.2rem; color:var(--red);">${fmt(c.total)}</strong>
+          </div>
+          <div style="background:#f5f6f7; padding:12px; border-radius:8px; font-size:0.85rem;">
+             <strong>🧵 Ponchados nuevos:</strong> ${i.punches} pieza(s) a ${fmt(TF_PRICING.general.punchFee)} c/u
+          </div>
+          <div style="text-align:right;"><button data-delete="${index}" class="delete" style="margin:0;">Eliminar</button></div>
+        </article>`;
+      }
+
+      let isClient = (i.kind === 'dtf' || i.kind === 'client-embroidery');
+      let serviceName = i.service === 'dtf' ? 'DTF' : 'Bordado';
+
+      return `<article class="item" style="display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:start;">
+          <h3 style="margin:0; font-size:1.1rem;">${product(i.productId).name} <span style="font-weight:normal; color:#687681; font-size:0.9rem;">(${n} pzas)</span></h3>
+          <div style="text-align:right;">
+            <strong style="font-size:1.3rem; color:var(--red);">${fmt(c.total)}</strong>
+          </div>
+        </div>
+
+        <div style="background:#f5f6f7; padding:12px; border-radius:8px; display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.85rem;">
+          ${isClient ? '' : `<div>
+            <strong style="color:var(--ink);">👕 Prenda:</strong> ${fmt(c.garmentUnit)} c/u
+            <br><small style="color:#687681">Subtotal: ${fmt(c.b)}</small>
+          </div>`}
+          
+          <div>
+            <strong style="color:var(--ink);">🎨 ${serviceName} (${i.modality}):</strong> ${fmt(c.serviceUnit)} c/u
+            <br><small style="color:#687681">Tarifa por volumen: rango de ${g[i.key].qty} pzas</small>
+          </div>
+
+          ${i.extra ? `<div>
+            <strong style="color:var(--ink);">➕ Servicio Extra:</strong> ${fmt(c.extraUnit)} c/u
+            <br><small style="color:#687681">Subtotal: ${fmt(c.extraTotal)}</small>
+          </div>` : ''}
+
+          ${i.punches ? `<div>
+            <strong style="color:var(--ink);">🧵 Ponchado Nuevo:</strong> ${i.punches}x ${fmt(TF_PRICING.general.punchFee)}
+            <br><small style="color:#687681">Cargo único extra: ${fmt(c.punch)}</small>
+          </div>` : ''}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+           <span style="font-size:0.9rem; font-weight:600; color:#17212b;">Promedio: ${fmt(c.unit)} c/u <small style="font-weight:normal; color:#687681;">${c.punch ? '(no incluye cargo fijo de ponchado)' : ''}</small></span>
+           <button data-delete="${index}" class="delete" style="margin:0; padding:6px 12px; font-weight:600;">Eliminar</button>
+        </div>
+      </article>`;
     }).join('');
+
     $('#empty').hidden = !!items.length;
     $('#total').textContent = $('#sideTotal').textContent = fmt(total);
     $('#pieces').textContent = pieces;
     $('#groups').textContent = Object.keys(g).length;
     $('#garmentTotal').textContent = fmt(bases);
-    $('#groupList').innerHTML = Object.values(g).map(x => `<div>${x.label}<b style="float:right">${x.qty} x ${fmt(x.unit)}</b></div>`).join('');
+    
+    // Mejorar visualmente el resumen de la derecha también
+    $('#groupList').innerHTML = Object.values(g).map(x => `
+      <div style="background:#fff; border:1px solid #e3e7ea; margin:8px 0; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:500; font-size:0.85rem;">${x.label}</span> 
+        <b style="color:var(--red); font-size:1rem;">${x.qty} <small style="color:#687681; font-size:0.75rem;">x</small> ${fmt(x.unit)}</b>
+      </div>
+    `).join('');
   }
 
   document.querySelectorAll('.actions button').forEach(b => b.onclick = () => open(b.dataset.kind));
