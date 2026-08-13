@@ -168,7 +168,6 @@
     $('#groups').textContent = Object.keys(g).length;
     $('#garmentTotal').textContent = fmt(bases);
     
-    // Mejorar visualmente el resumen de la derecha también
     $('#groupList').innerHTML = Object.values(g).map(x => `
       <div style="background:#fff; border:1px solid #e3e7ea; margin:8px 0; padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
         <span style="font-weight:500; font-size:0.85rem;">${x.label}</span> 
