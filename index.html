@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tinta Fuerte - Cotizador</title>
+  
+  <!-- Configuración PWA / App Descargable -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#df2433">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tinta Fuerte">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <b><i>TF</i> TINTA FUERTE</b>
+    <span>Cotizador interno</span>
+  </header>
+  
+  <main>
+    <section class="hero">
+      <div>
+        <small>COTIZACION ACTUAL</small>
+        <h1>Nueva cotizacion</h1>
+        <p>Los servicios iguales se agrupan automaticamente para aplicar el rango correcto.</p>
+      </div>
+      <div>
+        <small>TOTAL</small>
+        <strong id="total">$0</strong>
+      </div>
+    </section>
+    
+    <section class="actions">
+      <button data-kind="garment"><b>Playeras / Camisas</b><small>Prenda + DTF o bordado</small></button>
+      <button data-kind="cap"><b>Gorras</b><small>Gorra + servicio</small></button>
+      <button data-kind="dtf"><b>Solo DTF</b><small>Cliente trae prenda</small></button>
+      <button data-kind="client-embroidery"><b>Solo bordado</b><small>Cliente trae prenda</small></button>
+      <button data-kind="punch"><b>Solo ponchado</b><small>Cargo fijo sin prenda</small></button>
+    </section>
+    
+    <section class="grid">
+      <div class="card">
+        <div class="title">
+          <div>
+            <h2>Productos y servicios</h2>
+            <p>Agrega los renglones de la cotizacion.</p>
+          </div>
+          <button id="add" class="primary">+ Agregar</button>
+        </div>
+        <div id="empty" class="empty">Aun no hay productos. Elige una opcion para comenzar.</div>
+        <div id="items"></div>
+      </div>
+      
+      <aside class="card">
+        <h2>Resumen</h2>
+        <p>Prendas / gorras <b id="pieces">0</b></p>
+        <p>Servicios agrupados <b id="groups">0</b></p>
+        <div id="groupList"></div>
+        <div class="internal">
+          Control interno - prenda sola
+          <strong id="garmentTotal">$0</strong>
+          <small>Sin servicios</small>
+        </div>
+        <hr>
+        <p class="final">Total general <b id="sideTotal">$0</b></p>
+      </aside>
+    </section>
+  </main>
+
+  <dialog id="modal">
+    <form id="form">
+      <div class="title">
+        <h2 id="modalTitle">Agregar</h2>
+        <button value="cancel">x</button>
+      </div>
+      <input id="kind" type="hidden">
+      <label>Producto<select id="product"></select></label>
+      <label>Cantidad<input id="quantity" type="number" min="1" value="1"></label>
+      <label id="sizeSwitch"><input id="sizesOn" type="checkbox"> Desglosar tallas</label>
+      
+      <div id="sizes" hidden>
+        <label>S-XL<input id="regular" type="number" min="0" value="0"></label>
+        <label>2XL<input id="two" type="number" min="0" value="0"></label>
+        <label>3XL<input id="three" type="number" min="0" value="0"></label>
+      </div>
+      
+      <label id="serviceLabel">Servicio
+        <select id="service">
+          <option value="dtf">DTF</option>
+          <option value="embroidery">Bordado</option>
+        </select>
+      </label>
+      
+      <label>Modalidad<select id="modality"></select></label>
+      
+      <label id="extraLabel">Bordado extra por pieza
+        <input id="extra" type="number" min="0" value="0">
+        <small>Importe libre a criterio del equipo.</small>
+      </label>
+      
+      <label id="punchLabel">Ponchados nuevos
+        <input id="punches" type="number" min="0" value="0">
+        <small>$200 cada uno, como cargo fijo aparte.</small>
+      </label>
+      
+      <menu>
+        <button value="cancel">Cancelar</button>
+        <button class="primary">Agregar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="data/products.js"></script>
+  <script src="data/pricing.js"></script>
+  <script src="app.js"></script>
+
+  <!-- Registro de Service Worker para App Web -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(() => console.log('App lista'))
+          .catch(err => console.error('Error al activar App:', err));
+      });
+    }
+  </script>
+</body>
+</html>

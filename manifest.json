@@ -1,0 +1,21 @@
+{
+  "short_name": "Tinta Fuerte",
+  "name": "Tinta Fuerte - Cotizador",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/df2433/ffffff?text=TF",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/df2433/ffffff?text=TF",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#ffffff",
+  "theme_color": "#df2433",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}
