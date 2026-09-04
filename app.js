@@ -198,23 +198,45 @@
     `).join('');
   }
 
-  // Renderizar de forma segura sin importar si tiene o no S-XL
+  // Lista con inputs editables directos y botón de guardar individual
   function renderAdminProducts() {
     if (!window.TF_PRODUCTS) return;
     let html = '';
     
     (TF_PRODUCTS.garments || []).forEach((p, idx) => {
-      let priceText = p.prices ? `S-XL: $${p.prices['S–XL'] || 0}` : (p.adjust ? `Ajuste: $${p.adjust}` : 'Especial');
-      html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
-        <div><strong>${p.name}</strong> <span style="color:#687681;">(${priceText})</span></div>
-        <button type="button" data-del-garment="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 6px; cursor:pointer;">Eliminar</button>
+      let reg = p.prices ? (p.prices['S–XL'] ?? '') : '';
+      let isSpecial = !p.prices;
+
+      html += `<div style="display:flex; flex-direction:column; gap:6px; padding:10px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong>👕 ${p.name}</strong>
+          <button type="button" data-del-garment="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 8px; cursor:pointer;">Eliminar</button>
+        </div>
+        ${isSpecial ? `<span style="color:#687681;">Prenda especial (ajuste: $${p.adjust || 0})</span>` : `
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="display:flex; align-items:center; gap:4px; margin:0;">
+            S-XL: $<input type="number" id="edit-g-${idx}" value="${reg}" style="width:70px; padding:4px 6px; border:1px solid #ccc; border-radius:4px;">
+          </label>
+          <button type="button" data-save-garment="${idx}" style="background:#17212b; color:#fff; border:none; border-radius:4px; padding:4px 10px; cursor:pointer; font-weight:600;">Guardar</button>
+        </div>`}
       </div>`;
     });
 
     (TF_PRODUCTS.caps || []).forEach((p, idx) => {
-      html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
-        <div><strong>${p.name}</strong> <span style="color:#687681;">(Men: $${p.retail || 0} | May: $${p.wholesale || 0})</span></div>
-        <button type="button" data-del-cap="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 6px; cursor:pointer;">Eliminar</button>
+      html += `<div style="display:flex; flex-direction:column; gap:6px; padding:10px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong>🧢 ${p.name}</strong>
+          <button type="button" data-del-cap="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 8px; cursor:pointer;">Eliminar</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:4px; margin:0;">
+            Men: $<input type="number" id="edit-c-ret-${idx}" value="${p.retail || 0}" style="width:65px; padding:4px 6px; border:1px solid #ccc; border-radius:4px;">
+          </label>
+          <label style="display:flex; align-items:center; gap:4px; margin:0;">
+            May: $<input type="number" id="edit-c-who-${idx}" value="${p.wholesale || 0}" style="width:65px; padding:4px 6px; border:1px solid #ccc; border-radius:4px;">
+          </label>
+          <button type="button" data-save-cap="${idx}" style="background:#17212b; color:#fff; border:none; border-radius:4px; padding:4px 10px; cursor:pointer; font-weight:600;">Guardar</button>
+        </div>
       </div>`;
     });
 
@@ -281,26 +303,56 @@
     db.collection('config').doc('products').set(TF_PRODUCTS).then(() => {
       $('#formNewProduct').reset();
       $('#newProdType').dispatchEvent(new Event('change'));
-      alert('¡Producto guardado exitosamente!');
-    }).catch(() => {
-      $('#formNewProduct').reset();
-      $('#newProdType').dispatchEvent(new Event('change'));
-      alert('Guardado localmente. Se sincronizará en la nube al reconectar.');
+      alert('¡Producto agregado exitosamente!');
     });
   };
 
   $('#adminProductList').onclick = e => {
-    if (e.target.dataset.delGarment !== undefined) {
-      TF_PRODUCTS.garments.splice(+e.target.dataset.delGarment, 1);
-      renderAdminProducts();
-      products();
-      db.collection('config').doc('products').set(TF_PRODUCTS);
+    // Guardar edición de playera
+    if (e.target.dataset.saveGarment !== undefined) {
+      let idx = +e.target.dataset.saveGarment;
+      let val = +$(`#edit-g-${idx}`).value || 0;
+      if (!TF_PRODUCTS.garments[idx].prices) TF_PRODUCTS.garments[idx].prices = {};
+      TF_PRODUCTS.garments[idx].prices['S–XL'] = val;
+
+      db.collection('config').doc('products').set(TF_PRODUCTS).then(() => {
+        render();
+        alert('Precio actualizado correctamente');
+      });
     }
+
+    // Guardar edición de gorra
+    if (e.target.dataset.saveCap !== undefined) {
+      let idx = +e.target.dataset.saveCap;
+      let ret = +$(`#edit-c-ret-${idx}`).value || 0;
+      let who = +$(`#edit-c-who-${idx}`).value || 0;
+      TF_PRODUCTS.caps[idx].retail = ret;
+      TF_PRODUCTS.caps[idx].wholesale = who;
+
+      db.collection('config').doc('products').set(TF_PRODUCTS).then(() => {
+        render();
+        alert('Precios de gorra actualizados');
+      });
+    }
+
+    // Eliminar playera
+    if (e.target.dataset.delGarment !== undefined) {
+      if (confirm('¿Eliminar este producto del catálogo?')) {
+        TF_PRODUCTS.garments.splice(+e.target.dataset.delGarment, 1);
+        renderAdminProducts();
+        products();
+        db.collection('config').doc('products').set(TF_PRODUCTS);
+      }
+    }
+
+    // Eliminar gorra
     if (e.target.dataset.delCap !== undefined) {
-      TF_PRODUCTS.caps.splice(+e.target.dataset.delCap, 1);
-      renderAdminProducts();
-      products();
-      db.collection('config').doc('products').set(TF_PRODUCTS);
+      if (confirm('¿Eliminar esta gorra del catálogo?')) {
+        TF_PRODUCTS.caps.splice(+e.target.dataset.delCap, 1);
+        renderAdminProducts();
+        products();
+        db.collection('config').doc('products').set(TF_PRODUCTS);
+      }
     }
   };
 
