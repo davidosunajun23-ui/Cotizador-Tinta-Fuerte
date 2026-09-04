@@ -14,31 +14,27 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
+  db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+    console.warn('Persistencia:', err.code);
+  });
+
   let items = [], kind = 'garment';
   const modal = $('#modal');
   const adminModal = $('#adminModal');
   const client = { id: 'client', name: 'Prenda del cliente' };
 
-  db.collection('config').doc('products').onSnapshot(doc => {
-    if (doc.exists) {
-      window.TF_PRODUCTS = doc.data();
-      renderAdminProducts();
-      products();
-    } else {
-      if (typeof TF_PRODUCTS !== 'undefined') {
-        db.collection('config').doc('products').set(TF_PRODUCTS);
-      }
-    }
-  });
+  if (typeof TF_PRODUCTS !== 'undefined') {
+    window.TF_PRODUCTS = TF_PRODUCTS;
+  }
 
-  const product = id => TF_PRODUCTS.garments.find(p => p.id === id) || TF_PRODUCTS.caps.find(p => p.id === id) || client;
+  const product = id => (TF_PRODUCTS.garments || []).find(p => p.id === id) || (TF_PRODUCTS.caps || []).find(p => p.id === id) || client;
   const qty = i => i.sizes ? Object.values(i.sizes).reduce((a, n) => a + (+n || 0), 0) : +i.quantity;
   const at = (rs, n) => (rs.find(r => n >= r[0] && n <= r[1]) || rs.at(-1))[2];
 
   function products() {
     if (!window.TF_PRODUCTS) return;
     let xs = kind === 'garment' ? TF_PRODUCTS.garments : kind === 'cap' ? TF_PRODUCTS.caps : [client];
-    $('#product').innerHTML = xs.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    $('#product').innerHTML = (xs || []).map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   }
 
   function updateServices() {
@@ -119,7 +115,7 @@
     }
     let n = qty(i), p = product(i.productId);
     let serviceUnit = g[i.key].unit + (p.premium ? p.adjust || 0 : 0);
-    let b = i.kind === 'dtf' || i.kind === 'client-embroidery' ? 0 : (i.kind === 'cap' ? n * (n >= TF_PRICING.general.capWholesaleFrom ? p.wholesale : p.retail) : (p.premium ? 0 : (i.sizes ? Object.entries(i.sizes).reduce((s, [z, c]) => s + (p.prices[z] || 0) * c, 0) : (p.prices['S–XL'] || 0) * n)));
+    let b = i.kind === 'dtf' || i.kind === 'client-embroidery' ? 0 : (i.kind === 'cap' ? n * (n >= TF_PRICING.general.capWholesaleFrom ? p.wholesale : p.retail) : (p.premium ? 0 : (i.sizes ? Object.entries(i.sizes).reduce((s, [z, c]) => s + (p.prices?.[z] || 0) * c, 0) : (p.prices?.['S–XL'] || 0) * n)));
     let extra = i.extra * n, punch = i.punches * TF_PRICING.general.punchFee;
     let total = b + serviceUnit * n + extra + punch;
     let garmentUnit = n > 0 ? b / n : 0;
@@ -202,26 +198,42 @@
     `).join('');
   }
 
+  // Renderizar de forma segura sin importar si tiene o no S-XL
   function renderAdminProducts() {
     if (!window.TF_PRODUCTS) return;
     let html = '';
     
-    TF_PRODUCTS.garments.forEach((p, idx) => {
+    (TF_PRODUCTS.garments || []).forEach((p, idx) => {
+      let priceText = p.prices ? `S-XL: $${p.prices['S–XL'] || 0}` : (p.adjust ? `Ajuste: $${p.adjust}` : 'Especial');
       html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
-        <div><strong>${p.name}</strong> <span style="color:#687681;">(S-XL: $${p.prices['S–XL']})</span></div>
+        <div><strong>${p.name}</strong> <span style="color:#687681;">(${priceText})</span></div>
         <button type="button" data-del-garment="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 6px; cursor:pointer;">Eliminar</button>
       </div>`;
     });
 
-    TF_PRODUCTS.caps.forEach((p, idx) => {
+    (TF_PRODUCTS.caps || []).forEach((p, idx) => {
       html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
-        <div><strong>${p.name}</strong> <span style="color:#687681;">(Men: $${p.retail} | May: $${p.wholesale})</span></div>
+        <div><strong>${p.name}</strong> <span style="color:#687681;">(Men: $${p.retail || 0} | May: $${p.wholesale || 0})</span></div>
         <button type="button" data-del-cap="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 6px; cursor:pointer;">Eliminar</button>
       </div>`;
     });
 
     $('#adminProductList').innerHTML = html;
   }
+
+  db.collection('config').doc('products').onSnapshot(doc => {
+    if (doc.exists) {
+      window.TF_PRODUCTS = doc.data();
+      renderAdminProducts();
+      products();
+    } else {
+      if (typeof TF_PRODUCTS !== 'undefined') {
+        db.collection('config').doc('products').set(TF_PRODUCTS);
+      }
+    }
+  }, err => {
+    console.warn('Trabajando en modo local.');
+  });
 
   $('#btnOpenAdmin').onclick = () => {
     renderAdminProducts();
@@ -240,6 +252,9 @@
     let type = $('#newProdType').value;
     let name = $('#newProdName').value.trim();
     let id = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    if (!TF_PRODUCTS.garments) TF_PRODUCTS.garments = [];
+    if (!TF_PRODUCTS.caps) TF_PRODUCTS.caps = [];
 
     if (type === 'garments') {
       TF_PRODUCTS.garments.push({
@@ -260,20 +275,31 @@
       });
     }
 
+    renderAdminProducts();
+    products();
+
     db.collection('config').doc('products').set(TF_PRODUCTS).then(() => {
       $('#formNewProduct').reset();
       $('#newProdType').dispatchEvent(new Event('change'));
-      alert('¡Producto guardado exitosamente en la nube!');
+      alert('¡Producto guardado exitosamente!');
+    }).catch(() => {
+      $('#formNewProduct').reset();
+      $('#newProdType').dispatchEvent(new Event('change'));
+      alert('Guardado localmente. Se sincronizará en la nube al reconectar.');
     });
   };
 
   $('#adminProductList').onclick = e => {
     if (e.target.dataset.delGarment !== undefined) {
       TF_PRODUCTS.garments.splice(+e.target.dataset.delGarment, 1);
+      renderAdminProducts();
+      products();
       db.collection('config').doc('products').set(TF_PRODUCTS);
     }
     if (e.target.dataset.delCap !== undefined) {
       TF_PRODUCTS.caps.splice(+e.target.dataset.delCap, 1);
+      renderAdminProducts();
+      products();
       db.collection('config').doc('products').set(TF_PRODUCTS);
     }
   };
@@ -302,5 +328,6 @@
     }
   };
 
+  products();
   render();
 })();
