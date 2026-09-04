@@ -2,15 +2,41 @@
   const $ = s => document.querySelector(s);
   const fmt = n => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n || 0);
 
+  const firebaseConfig = {
+    apiKey: "AIzaSyDZOnj4EWRay7Fg40rPAazY3iSc0VgqnJ4",
+    authDomain: "cotizadortinta.firebaseapp.com",
+    projectId: "cotizadortinta",
+    storageBucket: "cotizadortinta.firebasestorage.app",
+    messagingSenderId: "696582538583",
+    appId: "1:696582538583:web:8fdbd92c15eccabfddaa12"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
   let items = [], kind = 'garment';
   const modal = $('#modal');
+  const adminModal = $('#adminModal');
   const client = { id: 'client', name: 'Prenda del cliente' };
+
+  db.collection('config').doc('products').onSnapshot(doc => {
+    if (doc.exists) {
+      window.TF_PRODUCTS = doc.data();
+      renderAdminProducts();
+      products();
+    } else {
+      if (typeof TF_PRODUCTS !== 'undefined') {
+        db.collection('config').doc('products').set(TF_PRODUCTS);
+      }
+    }
+  });
 
   const product = id => TF_PRODUCTS.garments.find(p => p.id === id) || TF_PRODUCTS.caps.find(p => p.id === id) || client;
   const qty = i => i.sizes ? Object.values(i.sizes).reduce((a, n) => a + (+n || 0), 0) : +i.quantity;
   const at = (rs, n) => (rs.find(r => n >= r[0] && n <= r[1]) || rs.at(-1))[2];
 
   function products() {
+    if (!window.TF_PRODUCTS) return;
     let xs = kind === 'garment' ? TF_PRODUCTS.garments : kind === 'cap' ? TF_PRODUCTS.caps : [client];
     $('#product').innerHTML = xs.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   }
@@ -175,6 +201,82 @@
       </div>
     `).join('');
   }
+
+  function renderAdminProducts() {
+    if (!window.TF_PRODUCTS) return;
+    let html = '';
+    
+    TF_PRODUCTS.garments.forEach((p, idx) => {
+      html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
+        <div><strong>${p.name}</strong> <span style="color:#687681;">(S-XL: $${p.prices['S–XL']})</span></div>
+        <button type="button" data-del-garment="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 6px; cursor:pointer;">Eliminar</button>
+      </div>`;
+    });
+
+    TF_PRODUCTS.caps.forEach((p, idx) => {
+      html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #eee; font-size:0.85rem;">
+        <div><strong>${p.name}</strong> <span style="color:#687681;">(Men: $${p.retail} | May: $${p.wholesale})</span></div>
+        <button type="button" data-del-cap="${idx}" style="background:#fee; color:#c00; border:1px solid #fcc; border-radius:4px; padding:2px 6px; cursor:pointer;">Eliminar</button>
+      </div>`;
+    });
+
+    $('#adminProductList').innerHTML = html;
+  }
+
+  $('#btnOpenAdmin').onclick = () => {
+    renderAdminProducts();
+    adminModal.showModal();
+  };
+
+  $('#newProdType').onchange = e => {
+    let isCap = e.target.value === 'caps';
+    $('#garmentPriceInputs').style.display = isCap ? 'none' : 'grid';
+    $('#capPriceInputs').style.display = isCap ? 'grid' : 'none';
+    $('#newPriceReg').required = !isCap;
+  };
+
+  $('#formNewProduct').onsubmit = e => {
+    e.preventDefault();
+    let type = $('#newProdType').value;
+    let name = $('#newProdName').value.trim();
+    let id = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    if (type === 'garments') {
+      TF_PRODUCTS.garments.push({
+        id,
+        name,
+        prices: {
+          'S–XL': +$('#newPriceReg').value || 0,
+          '2XL': +$('#newPrice2XL').value || 0,
+          '3XL': +$('#newPrice3XL').value || 0
+        }
+      });
+    } else {
+      TF_PRODUCTS.caps.push({
+        id,
+        name,
+        retail: +$('#newCapRetail').value || 0,
+        wholesale: +$('#newCapWholesale').value || 0
+      });
+    }
+
+    db.collection('config').doc('products').set(TF_PRODUCTS).then(() => {
+      $('#formNewProduct').reset();
+      $('#newProdType').dispatchEvent(new Event('change'));
+      alert('¡Producto guardado exitosamente en la nube!');
+    });
+  };
+
+  $('#adminProductList').onclick = e => {
+    if (e.target.dataset.delGarment !== undefined) {
+      TF_PRODUCTS.garments.splice(+e.target.dataset.delGarment, 1);
+      db.collection('config').doc('products').set(TF_PRODUCTS);
+    }
+    if (e.target.dataset.delCap !== undefined) {
+      TF_PRODUCTS.caps.splice(+e.target.dataset.delCap, 1);
+      db.collection('config').doc('products').set(TF_PRODUCTS);
+    }
+  };
 
   document.querySelectorAll('.actions button').forEach(b => b.onclick = () => open(b.dataset.kind));
   $('#add').onclick = () => open('garment');
