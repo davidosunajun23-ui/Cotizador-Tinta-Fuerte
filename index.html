@@ -16,7 +16,10 @@
 <body>
   <header>
     <b><i>TF</i> TINTA FUERTE</b>
-    <span>Cotizador interno</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span>Cotizador interno</span>
+      <button id="btnOpenAdmin" type="button" style="background:#fff; color:#17212b; border:1px solid #d3d9de; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:0.85rem; font-weight:600;">⚙️ Precios</button>
+    </div>
   </header>
   
   <main>
@@ -69,6 +72,7 @@
     </section>
   </main>
 
+  <!-- Modal Cotizador -->
   <dialog id="modal">
     <form id="form">
       <div class="title">
@@ -111,6 +115,44 @@
       </menu>
     </form>
   </dialog>
+
+  <!-- Modal Panel Administrador de Precios -->
+  <dialog id="adminModal" style="max-width:550px; width:95%; border-radius:12px; border:none; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h2 style="margin:0; font-size:1.3rem;">⚙️ Administrar Productos</h2>
+      <button type="button" onclick="document.getElementById('adminModal').close()" style="border:none; background:#eee; border-radius:50%; width:30px; height:30px; cursor:pointer;">x</button>
+    </div>
+
+    <form id="formNewProduct" style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:16px;">
+      <strong style="display:block; margin-bottom:8px; font-size:0.95rem;">+ Agregar nuevo producto</strong>
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:8px; margin-bottom:8px;">
+        <input id="newProdName" placeholder="Nombre (ej. Polo Dry-Fit)" required style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+        <select id="newProdType" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+          <option value="garments">Playera/Camisa</option>
+          <option value="caps">Gorra</option>
+        </select>
+      </div>
+      <div id="garmentPriceInputs" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; margin-bottom:8px;">
+        <input id="newPriceReg" type="number" placeholder="S-XL ($)" required style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+        <input id="newPrice2XL" type="number" placeholder="2XL ($)" value="0" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+        <input id="newPrice3XL" type="number" placeholder="3XL ($)" value="0" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+      </div>
+      <div id="capPriceInputs" style="display:none; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:8px;">
+        <input id="newCapRetail" type="number" placeholder="Menudeo ($)" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+        <input id="newCapWholesale" type="number" placeholder="Mayoreo ($)" style="padding:6px; border:1px solid #ccc; border-radius:4px;">
+      </div>
+      <button type="submit" style="background:var(--red); color:#fff; border:none; padding:8px 14px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">Guardar Producto</button>
+    </form>
+
+    <div style="max-height:280px; overflow-y:auto; border-top:1px solid #e3e7ea; padding-top:10px;">
+      <strong style="display:block; margin-bottom:8px; font-size:0.9rem;">Lista de catálogo actual:</strong>
+      <div id="adminProductList"></div>
+    </div>
+  </dialog>
+
+  <!-- Librerías de Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <script src="products.js"></script>
   <script src="pricing.js"></script>
